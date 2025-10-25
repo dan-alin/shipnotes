@@ -122,7 +122,7 @@ export async function generateReleaseNotes(
         baseUrl,
         options.sections
       )
-    : generateMarkdown(commits, fromCommit, to);
+    : generateMarkdown(commits, fromCommit, to, options.sections);
 
   // Write to file
   const outputPath = join(process.cwd(), output);
@@ -162,10 +162,22 @@ function parseGitLog(output: string): Commit[] {
 function generateMarkdown(
   commits: Commit[],
   from?: string,
-  to?: string
+  to?: string,
+  sections?: SectionMapping[]
 ): string {
   const date = new Date().toISOString().split('T')[0];
-  let markdown = `# Release Notes\n\n`;
+
+  // Generate title based on version tags
+  let title = 'RELEASE NOTES';
+  if (to && to !== 'HEAD') {
+    if (from) {
+      title = `RELEASE NOTES ${to} - ${from}`;
+    } else {
+      title = `RELEASE NOTES ${to}`;
+    }
+  }
+
+  let markdown = `# ${title}\n\n`;
   markdown += `Generated: ${date}\n\n`;
 
   if (from) {
@@ -174,21 +186,75 @@ function generateMarkdown(
     markdown += `Up to: ${to}\n\n`;
   }
 
-  markdown += `Total commits: ${commits.length}\n\n`;
-  markdown += `---\n\n`;
+  // Default sections if not provided
+  const defaultSections: SectionMapping[] = [
+    { section: 'Features', pattern: '^feat', label: '' },
+    { section: 'Bug Fixes', pattern: '^fix', label: '' },
+    { section: 'Other Changes', pattern: '.*', label: '' },
+  ];
 
-  for (const commit of commits) {
-    markdown += `## ${commit.message}\n\n`;
-    markdown += `- **Hash:** ${commit.hash}\n`;
-    markdown += `- **Author:** ${commit.author_name} <${commit.author_email}>\n`;
-    markdown += `- **Date:** ${commit.date}\n`;
+  const activeSections = sections || defaultSections;
 
-    if (commit.body) {
-      markdown += `\n${commit.body}\n`;
-    }
+  // Group commits by section
+  const groupedCommits: Map<string, Commit[]> = new Map();
+  const matchedCommits = new Set<string>();
 
-    markdown += `\n---\n\n`;
+  for (const mapping of activeSections) {
+    groupedCommits.set(mapping.section, []);
   }
+
+  // Match commits to sections
+  for (const commit of commits) {
+    const message = commit.message;
+
+    for (const mapping of activeSections) {
+      // Skip "catch-all" patterns for now
+      if (mapping.pattern === '.*') continue;
+
+      const regex = new RegExp(mapping.pattern, 'i');
+      if (regex.test(message)) {
+        groupedCommits.get(mapping.section)?.push(commit);
+        matchedCommits.add(commit.hash);
+        break; // Only add to first matching section
+      }
+    }
+  }
+
+  // Add unmatched commits to catch-all section (if exists)
+  const catchAllSection = activeSections.find((s) => s.pattern === '.*');
+  if (catchAllSection) {
+    for (const commit of commits) {
+      if (!matchedCommits.has(commit.hash)) {
+        groupedCommits.get(catchAllSection.section)?.push(commit);
+      }
+    }
+  }
+
+  // Render sections
+  let totalCount = 0;
+  for (const mapping of activeSections) {
+    const sectionCommits = groupedCommits.get(mapping.section) || [];
+    if (sectionCommits.length > 0) {
+      markdown += `## ${mapping.section}\n\n`;
+      for (const commit of sectionCommits) {
+        // Extract clean message (remove conventional commit prefix if present)
+        let cleanMessage = commit.message;
+        const conventionalMatch = commit.message.match(
+          /^(\w+)(\([^)]+\))?:\s*(.*)$/
+        );
+        if (conventionalMatch) {
+          cleanMessage = conventionalMatch[3];
+        }
+        markdown += `- ${cleanMessage}\n`;
+      }
+      markdown += `\n`;
+      totalCount += sectionCommits.length;
+    }
+  }
+
+  // Summary
+  markdown += `---\n\n`;
+  markdown += `**Total:** ${totalCount} commit(s)\n`;
 
   return markdown;
 }
@@ -201,7 +267,18 @@ function generateReleaseNotesMarkdown(
   sections?: SectionMapping[]
 ): string {
   const date = new Date().toISOString().split('T')[0];
-  let markdown = `# Release Notes\n\n`;
+
+  // Generate title based on version tags
+  let title = 'RELEASE NOTES';
+  if (to && to !== 'HEAD') {
+    if (from) {
+      title = `RELEASE NOTES ${to} - ${from}`;
+    } else {
+      title = `RELEASE NOTES ${to}`;
+    }
+  }
+
+  let markdown = `# ${title}\n\n`;
   markdown += `Generated: ${date}\n\n`;
 
   if (from) {
