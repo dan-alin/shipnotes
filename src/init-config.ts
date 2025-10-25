@@ -5,10 +5,17 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import * as readline from 'readline';
 
+interface SectionMapping {
+  section: string;
+  pattern: string;
+  label: string;
+}
+
 interface Config {
   baseUrl?: string;
   releaseNotes?: boolean;
   output?: string;
+  sections?: SectionMapping[];
 }
 
 const CONFIG_FILE = 'shipnotes.json';
@@ -53,6 +60,7 @@ export async function initConfig() {
   const output = await question(
     'Default output file (press Enter for RELEASE_NOTES.md): '
   );
+  const customSections = await question('Configure custom sections? (y/N): ');
 
   const config: Config = {};
 
@@ -66,6 +74,20 @@ export async function initConfig() {
 
   if (output) {
     config.output = output;
+  }
+
+  if (customSections.toLowerCase() === 'y') {
+    config.sections = [
+      {
+        section: 'User Stories',
+        pattern: '^feat\\(\\d+\\):',
+        label: 'US',
+      },
+      { section: 'Bugs', pattern: '^fix\\(\\d+\\):', label: 'BUG' },
+    ];
+    console.log(
+      '\n📝 Default sections configured. Edit shipnotes.json to customize.'
+    );
   }
 
   // Write config file

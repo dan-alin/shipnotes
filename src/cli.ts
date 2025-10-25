@@ -6,10 +6,17 @@ import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 
+interface SectionMapping {
+  section: string;
+  pattern: string;
+  label: string;
+}
+
 interface Config {
   baseUrl?: string;
   releaseNotes?: boolean;
   output?: string;
+  sections?: SectionMapping[];
 }
 
 const CONFIG_FILE = 'shipnotes.json';
@@ -73,6 +80,7 @@ program
             : config.releaseNotes,
         baseUrl: options.baseUrl || config.baseUrl,
         last: options.last,
+        sections: config.sections,
       };
 
       await generateReleaseNotes(mergedOptions);

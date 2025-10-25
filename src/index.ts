@@ -5,6 +5,12 @@ import { join } from 'path';
 
 const execFileAsync = promisify(execFile);
 
+export interface SectionMapping {
+  section: string;
+  pattern: string;
+  label: string;
+}
+
 export interface ReleaseNotesOptions {
   output?: string;
   from?: string;
@@ -13,6 +19,7 @@ export interface ReleaseNotesOptions {
   releaseNotes?: boolean;
   baseUrl?: string;
   last?: boolean;
+  sections?: SectionMapping[];
 }
 
 interface Commit {
@@ -108,7 +115,13 @@ export async function generateReleaseNotes(
 
   // Generate markdown content
   const markdown = releaseNotes
-    ? generateReleaseNotesMarkdown(commits, fromCommit, to, baseUrl)
+    ? generateReleaseNotesMarkdown(
+        commits,
+        fromCommit,
+        to,
+        baseUrl,
+        options.sections
+      )
     : generateMarkdown(commits, fromCommit, to);
 
   // Write to file
@@ -184,7 +197,8 @@ function generateReleaseNotesMarkdown(
   commits: Commit[],
   from?: string,
   to?: string,
-  baseUrl?: string
+  baseUrl?: string,
+  sections?: SectionMapping[]
 ): string {
   const date = new Date().toISOString().split('T')[0];
   let markdown = `# Release Notes\n\n`;
@@ -196,41 +210,56 @@ function generateReleaseNotesMarkdown(
     markdown += `Up to: ${to}\n\n`;
   }
 
-  // Group commits by type (only include those with ticket numbers)
-  const features: Commit[] = [];
-  const fixes: Commit[] = [];
+  // Default sections if not provided
+  const defaultSections: SectionMapping[] = [
+    { section: 'User Stories', pattern: '^feat\\(\\d+\\):', label: 'US' },
+    { section: 'Bugs', pattern: '^fix\\(\\d+\\):', label: 'BUG' },
+  ];
+
+  const activeSections = sections || defaultSections;
+
+  // Group commits by section
+  const groupedCommits: Map<string, Commit[]> = new Map();
+
+  for (const mapping of activeSections) {
+    groupedCommits.set(mapping.section, []);
+  }
 
   for (const commit of commits) {
     const message = commit.message;
-    // Only include commits with ticket numbers in parentheses
-    if (/^feat\(\d+\):/i.test(message)) {
-      features.push(commit);
-    } else if (/^fix\(\d+\):/i.test(message)) {
-      fixes.push(commit);
+
+    for (const mapping of activeSections) {
+      const regex = new RegExp(mapping.pattern, 'i');
+      if (regex.test(message)) {
+        groupedCommits.get(mapping.section)?.push(commit);
+        break; // Only add to first matching section
+      }
     }
   }
 
-  // User Stories section
-  if (features.length > 0) {
-    markdown += `## User Stories\n\n`;
-    for (const commit of features) {
-      markdown += formatCommitWithLink(commit, 'feat', 'US', baseUrl);
+  // Render sections
+  let totalCount = 0;
+  for (const mapping of activeSections) {
+    const sectionCommits = groupedCommits.get(mapping.section) || [];
+    if (sectionCommits.length > 0) {
+      markdown += `## ${mapping.section}\n\n`;
+      for (const commit of sectionCommits) {
+        const patternType = mapping.pattern.match(/\^([^\\(]+)/)?.[1] || 'feat';
+        markdown += formatCommitWithLink(
+          commit,
+          patternType,
+          mapping.label,
+          baseUrl
+        );
+      }
+      markdown += `\n`;
+      totalCount += sectionCommits.length;
     }
-    markdown += `\n`;
-  }
-
-  // Bugs section
-  if (fixes.length > 0) {
-    markdown += `## Bugs\n\n`;
-    for (const commit of fixes) {
-      markdown += formatCommitWithLink(commit, 'fix', 'BUG', baseUrl);
-    }
-    markdown += `\n`;
   }
 
   // Summary
   markdown += `---\n\n`;
-  markdown += `**Total:** ${features.length} feature(s), ${fixes.length} fix(es)\n`;
+  markdown += `**Total:** ${totalCount} commit(s)\n`;
 
   return markdown;
 }

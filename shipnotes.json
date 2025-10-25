@@ -1,4 +1,21 @@
 {
   "baseUrl": "https://jira.mycompanyboard.com/tiket",
-  "verbose": true
+  "releaseNotes": true,
+  "sections": [
+    {
+      "section": "User Stories",
+      "pattern": "^feat\\(\\d+\\):",
+      "label": "US"
+    },
+    {
+      "section": "Bugs",
+      "pattern": "^fix\\(\\d+\\):",
+      "label": "BUG"
+    },
+    {
+      "section": "Improvements",
+      "pattern": "^chore\\(\\d+\\):",
+      "label": "IMPROVEMENT"
+    }
+  ]
 }
