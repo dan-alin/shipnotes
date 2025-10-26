@@ -1,4 +1,4 @@
-# shipnotes
+# notegen
 
 Generate release notes from git commit history.
 
@@ -8,39 +8,39 @@ Generate release notes from git commit history.
 
 ```bash
 # With npm
-npm install --save-dev shipnotes
+npm install --save-dev notegen
 
 # With pnpm
-pnpm add -D shipnotes
+pnpm add -D notegen
 
 # With yarn
-yarn add -D shipnotes
+yarn add -D notegen
 ```
 
 ### Global (use across multiple projects)
 
 ```bash
 # With npm
-npm install -g shipnotes
+npm install -g notegen
 
 # With pnpm
-pnpm add -g shipnotes
+pnpm add -g notegen
 
 # With yarn
-yarn global add shipnotes
+yarn global add notegen
 ```
 
-With global installation, use `shipnotes` directly without `npx`.
+With global installation, use `notegen` directly without `npx`.
 
 ## Quick Start
 
 1. Initialize configuration:
 
 ```bash
-npx shipnotes init
+npx notegen init
 ```
 
-This creates a `shipnotes.json` file in your project:
+This creates a `notegen.json` file in your project:
 
 ```json
 {
@@ -53,7 +53,7 @@ This creates a `shipnotes.json` file in your project:
 2. Generate release notes:
 
 ```bash
-npx shipnotes generate
+npx notegen generate
 ```
 
 ## Usage
@@ -62,12 +62,12 @@ npx shipnotes generate
 
 ```bash
 # Generate release notes for all commits
-npx shipnotes generate
+npx notegen generate
 
 # Or add to package.json scripts:
 {
   "scripts": {
-    "release-notes": "shipnotes generate"
+    "release-notes": "notegen generate"
   }
 }
 
@@ -79,25 +79,25 @@ pnpm release-notes
 
 ```bash
 # Specify output file
-npx shipnotes generate -o CHANGELOG.md
+npx notegen generate -o CHANGELOG.md
 
 # Generate for specific commit range
-npx shipnotes generate --from v1.0.0 --to v2.0.0
+npx notegen generate --from v1.0.0 --to v2.0.0
 
 # Generate for a specific tag (auto-detects previous tag)
-npx shipnotes generate --to v2.0.0
+npx notegen generate --to v2.0.0
 
 # Generate for the latest tag (auto-detects last and previous tag)
-npx shipnotes generate --last --release-notes
+npx notegen generate --last --release-notes
 
 # Limit number of commits
-npx shipnotes generate --limit 10
+npx notegen generate --limit 10
 
 # Generate release notes format (grouped by feat/fix with tickets)
-npx shipnotes generate --release-notes
+npx notegen generate --release-notes
 
 # With ticket links
-npx shipnotes generate --release-notes --base-url https://jira.company.com/browse
+npx notegen generate --release-notes --base-url https://jira.company.com/browse
 ```
 
 ## Options
@@ -158,7 +158,7 @@ Commits without matching footer references are excluded from release notes mode.
 
 ## Custom Sections
 
-You can configure custom sections in `shipnotes.json`:
+You can configure custom sections in `notegen.json`:
 
 ```json
 {
