@@ -349,21 +349,15 @@ function formatCommitWithLink(
     ticketNumber = match[1];
   }
 
-  // Extract clean message (remove conventional commit prefix if present)
-  const conventionalMatch = commit.message.match(
-    /^(\w+)(?:\([^)]+\))?:\s*(.*)$/
-  );
-  const message = conventionalMatch ? conventionalMatch[2] : commit.message;
-
   if (ticketNumber) {
     if (baseUrl) {
       const link = `${baseUrl}/${ticketNumber}`;
-      return `- [${label} ${ticketNumber}](${link}): ${message}\n`;
+      return `- [${label} ${ticketNumber}](${link})\n`;
     } else {
-      return `- ${label} ${ticketNumber}: ${message}\n`;
+      return `- ${label} ${ticketNumber}\n`;
     }
   }
 
-  // Fallback for commits without ticket numbers
-  return `- ${message}\n`;
+  // Fallback for commits without ticket numbers (skip them in release notes mode)
+  return '';
 }
