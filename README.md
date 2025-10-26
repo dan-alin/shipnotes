@@ -8,26 +8,26 @@ Generate release notes from git commit history.
 
 ```bash
 # With npm
-npm install --save-dev notegen
+npm install --save-dev @definitely-not-devs/notegen
 
 # With pnpm
-pnpm add -D notegen
+pnpm add -D @definitely-not-devs/notegen
 
 # With yarn
-yarn add -D notegen
+yarn add -D @definitely-not-devs/notegen
 ```
 
 ### Global (use across multiple projects)
 
 ```bash
 # With npm
-npm install -g notegen
+npm install -g @definitely-not-devs/notegen
 
 # With pnpm
-pnpm add -g notegen
+pnpm add -g @definitely-not-devs/notegen
 
 # With yarn
-yarn global add notegen
+yarn global add @definitely-not-devs/notegen
 ```
 
 With global installation, use `notegen` directly without `npx`.
@@ -134,9 +134,15 @@ Custom sections from config are **not used** in basic mode.
 
 ### Release Notes Mode (`--release-notes`)
 
-Groups commits by footer references for ticket tracking:
+Groups commits by ticket references for tracking. The ticket reference can be in either the commit message or body:
 
 ```bash
+# In commit message (single -m)
+git commit -m "feat: add user authentication US-123"
+```
+
+```bash
+# In commit footer (multiple -m or editor)
 feat: add user authentication
 
 US: 123
@@ -148,13 +154,13 @@ fix: resolve login bug
 BUG: 456
 ```
 
-In release notes mode, commits are grouped by footer reference type (`US`, `BUG`, etc.) instead of the commit message prefix. Supported footer formats:
+In release notes mode, commits are grouped by ticket reference type (`US`, `BUG`, etc.) instead of the commit message prefix. Supported formats:
 
-- `US: 123` or `US-123` → User Stories section
-- `BUG: 456` or `BUG-456` → Bugs section
+- `US: 123` or `US-123` or `US 123` or `US#123` → User Stories section
+- `BUG: 456` or `BUG-456` or `BUG 456` or `BUG#456` → Bugs section
 - Any custom pattern defined in your config
 
-Commits without matching footer references are excluded from release notes mode.
+Commits without matching ticket references are excluded from release notes mode.
 
 ## Custom Sections
 
@@ -182,4 +188,4 @@ You can configure custom sections in `notegen.json`:
 }
 ```
 
-Each section matches commits based on footer references. The `pattern` field looks for `<pattern>: <number>` or `<pattern>-<number>` in commit footers.
+Each section matches commits based on ticket references in either the commit message or body. The `pattern` field looks for `<pattern>: <number>`, `<pattern>-<number>`, `<pattern> <number>`, or `<pattern>#<number>` anywhere in the commit.

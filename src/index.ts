@@ -302,17 +302,14 @@ function generateReleaseNotesMarkdown(
   }
 
   for (const commit of commits) {
-    if (commit.body) {
-      // Check footer for reference type (e.g., US: 234, BUG: 45, US-234, BUG-45)
-      for (const mapping of activeSections) {
-        const regex = new RegExp(
-          `(?:^|\\n)${mapping.pattern}[-:]?\\s*#?(\\d+)`,
-          'i'
-        );
-        if (regex.test(commit.body)) {
-          groupedCommits.get(mapping.section)?.push(commit);
-          break; // Only add to first matching section
-        }
+    // Check both message and body for reference type (e.g., US: 234, BUG: 45, US-234, BUG-45)
+    const searchText = `${commit.message}\n${commit.body}`;
+
+    for (const mapping of activeSections) {
+      const regex = new RegExp(`${mapping.pattern}[-:]?\\s*#?(\\d+)`, 'i');
+      if (regex.test(searchText)) {
+        groupedCommits.get(mapping.section)?.push(commit);
+        break; // Only add to first matching section
       }
     }
   }
@@ -349,17 +346,16 @@ function formatCommitWithLink(
   label: string,
   baseUrl?: string
 ): string {
-  // Extract ticket number from commit footer matching the reference type
+  // Extract ticket number from commit message or body matching the reference type
   let ticketNumber: string | null = null;
 
-  if (commit.body) {
-    // Match footer format: US: 234, BUG: 45, US-234, BUG-45, etc.
-    const footerMatch = commit.body.match(
-      new RegExp(`(?:^|\\n)${refType}[-:]?\\s*#?(\\d+)`, 'i')
-    );
-    if (footerMatch) {
-      ticketNumber = footerMatch[1];
-    }
+  // Check message first, then body
+  const searchText = `${commit.message}\n${commit.body}`;
+  const match = searchText.match(
+    new RegExp(`${refType}[-:]?\\s*#?(\\d+)`, 'i')
+  );
+  if (match) {
+    ticketNumber = match[1];
   }
 
   // Extract clean message (remove conventional commit prefix if present)

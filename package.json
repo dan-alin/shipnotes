@@ -1,6 +1,9 @@
 {
-  "name": "@def!dev/notegen",
+  "name": "@definitely-not-devs/notegen",
   "version": "0.0.3",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Release note generator",
   "main": "./dist/index.js",
   "bin": {
