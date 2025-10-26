@@ -4,17 +4,17 @@
   "sections": [
     {
       "section": "User Stories",
-      "pattern": "^feat\\(\\d+\\):",
+      "pattern": "US",
       "label": "US"
     },
     {
       "section": "Bugs",
-      "pattern": "^fix\\(\\d+\\):",
+      "pattern": "BUG",
       "label": "BUG"
     },
     {
       "section": "Improvements",
-      "pattern": "^chore\\(\\d+\\):",
+      "pattern": "IMPROVEMENT",
       "label": "IMPROVEMENT"
     }
   ]

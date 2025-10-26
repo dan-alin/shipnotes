@@ -112,13 +112,74 @@ npx shipnotes generate --release-notes --base-url https://jira.company.com/brows
 
 CLI options override configuration file settings.
 
-## Conventional Commits
+## Modes
 
-For best results with `--release-notes` mode, use conventional commits:
+### Basic Mode (default)
+
+Groups commits by conventional commit prefixes in the message:
 
 ```bash
-feat(123): add user authentication
-fix(456): resolve login bug
+feat: add user authentication
+fix: resolve login bug
+chore: update dependencies
 ```
 
-Commits must follow the pattern `feat(<number>):` or `fix(<number>):` to be included in release notes mode.
+Generates a simple changelog grouped by:
+
+- **Features** (`feat:` commits)
+- **Bug Fixes** (`fix:` commits)
+- **Other Changes** (everything else)
+
+Custom sections from config are **not used** in basic mode.
+
+### Release Notes Mode (`--release-notes`)
+
+Groups commits by footer references for ticket tracking:
+
+```bash
+feat: add user authentication
+
+US: 123
+```
+
+```bash
+fix: resolve login bug
+
+BUG: 456
+```
+
+In release notes mode, commits are grouped by footer reference type (`US`, `BUG`, etc.) instead of the commit message prefix. Supported footer formats:
+
+- `US: 123` or `US-123` → User Stories section
+- `BUG: 456` or `BUG-456` → Bugs section
+- Any custom pattern defined in your config
+
+Commits without matching footer references are excluded from release notes mode.
+
+## Custom Sections
+
+You can configure custom sections in `shipnotes.json`:
+
+```json
+{
+  "sections": [
+    {
+      "section": "User Stories",
+      "pattern": "US",
+      "label": "US"
+    },
+    {
+      "section": "Bugs",
+      "pattern": "BUG",
+      "label": "BUG"
+    },
+    {
+      "section": "Improvements",
+      "pattern": "IMPROVEMENT",
+      "label": "IMPROVEMENT"
+    }
+  ]
+}
+```
+
+Each section matches commits based on footer references. The `pattern` field looks for `<pattern>: <number>` or `<pattern>-<number>` in commit footers.

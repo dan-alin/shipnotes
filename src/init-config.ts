@@ -80,14 +80,15 @@ export async function initConfig() {
     config.sections = [
       {
         section: 'User Stories',
-        pattern: '^feat\\(\\d+\\):',
+        pattern: 'US',
         label: 'US',
       },
-      { section: 'Bugs', pattern: '^fix\\(\\d+\\):', label: 'BUG' },
+      { section: 'Bugs', pattern: 'BUG', label: 'BUG' },
     ];
     console.log(
-      '\n📝 Default sections configured. Edit shipnotes.json to customize.'
+      '\n📝 Default sections configured. Patterns match footer references (e.g., US: 123, BUG-456).'
     );
+    console.log('Edit shipnotes.json to customize sections.');
   }
 
   // Write config file

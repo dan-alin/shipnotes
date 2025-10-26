@@ -1,11 +1,11 @@
 {
-  "name": "shipnotes",
-  "version": "0.0.2",
+  "name": "@def!dev/notegen",
+  "version": "0.0.3",
   "description": "Release note generator",
   "main": "./dist/index.js",
   "bin": {
-    "shipnotes": "./dist/cli.js",
-    "shipnotes-init": "./dist/init-config.js"
+    "notegen": "./dist/cli.js",
+    "notegen-init": "./dist/init-config.js"
   },
   "type": "module",
   "scripts": {

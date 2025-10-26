@@ -122,7 +122,7 @@ export async function generateReleaseNotes(
         baseUrl,
         options.sections
       )
-    : generateMarkdown(commits, fromCommit, to, options.sections);
+    : generateMarkdown(commits, fromCommit, to);
 
   // Write to file
   const outputPath = join(process.cwd(), output);
@@ -162,8 +162,7 @@ function parseGitLog(output: string): Commit[] {
 function generateMarkdown(
   commits: Commit[],
   from?: string,
-  to?: string,
-  sections?: SectionMapping[]
+  to?: string
 ): string {
   const date = new Date().toISOString().split('T')[0];
 
@@ -186,14 +185,14 @@ function generateMarkdown(
     markdown += `Up to: ${to}\n\n`;
   }
 
-  // Default sections if not provided
-  const defaultSections: SectionMapping[] = [
+  // Basic mode always uses conventional commit patterns (ignores custom sections)
+  const conventionalSections: SectionMapping[] = [
     { section: 'Features', pattern: '^feat', label: '' },
     { section: 'Bug Fixes', pattern: '^fix', label: '' },
     { section: 'Other Changes', pattern: '.*', label: '' },
   ];
 
-  const activeSections = sections || defaultSections;
+  const activeSections = conventionalSections;
 
   // Group commits by section
   const groupedCommits: Map<string, Commit[]> = new Map();
@@ -289,13 +288,13 @@ function generateReleaseNotesMarkdown(
 
   // Default sections if not provided
   const defaultSections: SectionMapping[] = [
-    { section: 'User Stories', pattern: '^feat\\(\\d+\\):', label: 'US' },
-    { section: 'Bugs', pattern: '^fix\\(\\d+\\):', label: 'BUG' },
+    { section: 'User Stories', pattern: 'US', label: 'US' },
+    { section: 'Bugs', pattern: 'BUG', label: 'BUG' },
   ];
 
   const activeSections = sections || defaultSections;
 
-  // Group commits by section
+  // Group commits by section based on footer references
   const groupedCommits: Map<string, Commit[]> = new Map();
 
   for (const mapping of activeSections) {
@@ -303,13 +302,17 @@ function generateReleaseNotesMarkdown(
   }
 
   for (const commit of commits) {
-    const message = commit.message;
-
-    for (const mapping of activeSections) {
-      const regex = new RegExp(mapping.pattern, 'i');
-      if (regex.test(message)) {
-        groupedCommits.get(mapping.section)?.push(commit);
-        break; // Only add to first matching section
+    if (commit.body) {
+      // Check footer for reference type (e.g., US: 234, BUG: 45, US-234, BUG-45)
+      for (const mapping of activeSections) {
+        const regex = new RegExp(
+          `(?:^|\\n)${mapping.pattern}[-:]?\\s*#?(\\d+)`,
+          'i'
+        );
+        if (regex.test(commit.body)) {
+          groupedCommits.get(mapping.section)?.push(commit);
+          break; // Only add to first matching section
+        }
       }
     }
   }
@@ -321,10 +324,9 @@ function generateReleaseNotesMarkdown(
     if (sectionCommits.length > 0) {
       markdown += `## ${mapping.section}\n\n`;
       for (const commit of sectionCommits) {
-        const patternType = mapping.pattern.match(/\^([^\\(]+)/)?.[1] || 'feat';
         markdown += formatCommitWithLink(
           commit,
-          patternType,
+          mapping.pattern,
           mapping.label,
           baseUrl
         );
@@ -343,19 +345,30 @@ function generateReleaseNotesMarkdown(
 
 function formatCommitWithLink(
   commit: Commit,
-  type: string,
+  refType: string,
   label: string,
   baseUrl?: string
 ): string {
-  // Extract ticket number from commit message (e.g., feat(2024): message)
-  const match = commit.message.match(
-    new RegExp(`^${type}\\((\\d+)\\):\\s*(.*)`, 'i')
+  // Extract ticket number from commit footer matching the reference type
+  let ticketNumber: string | null = null;
+
+  if (commit.body) {
+    // Match footer format: US: 234, BUG: 45, US-234, BUG-45, etc.
+    const footerMatch = commit.body.match(
+      new RegExp(`(?:^|\\n)${refType}[-:]?\\s*#?(\\d+)`, 'i')
+    );
+    if (footerMatch) {
+      ticketNumber = footerMatch[1];
+    }
+  }
+
+  // Extract clean message (remove conventional commit prefix if present)
+  const conventionalMatch = commit.message.match(
+    /^(\w+)(?:\([^)]+\))?:\s*(.*)$/
   );
+  const message = conventionalMatch ? conventionalMatch[2] : commit.message;
 
-  if (match) {
-    const ticketNumber = match[1];
-    const message = match[2];
-
+  if (ticketNumber) {
     if (baseUrl) {
       const link = `${baseUrl}/${ticketNumber}`;
       return `- [${label} ${ticketNumber}](${link}): ${message}\n`;
@@ -365,13 +378,5 @@ function formatCommitWithLink(
   }
 
   // Fallback for commits without ticket numbers
-  const message = commit.message.replace(
-    new RegExp(`^${type}(\\([^)]+\\))?:\\s*`, 'i'),
-    ''
-  );
-  let result = `- ${message}\n`;
-  if (commit.body) {
-    result += `  ${commit.body.replace(/\n/g, '\n  ')}\n`;
-  }
-  return result;
+  return `- ${message}\n`;
 }
