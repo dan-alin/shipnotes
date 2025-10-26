@@ -66,6 +66,10 @@ program
     'Generate release notes format with grouped tickets (feat/fix)'
   )
   .option(
+    '--no-release-notes',
+    'Generate standard changelog format (overrides config)'
+  )
+  .option(
     '-b, --base-url <url>',
     'Base URL for linking tickets (e.g., https://jira.company.com/browse)'
   )
@@ -84,7 +88,7 @@ program
         releaseNotes:
           options.releaseNotes !== undefined
             ? options.releaseNotes
-            : config.releaseNotes,
+            : (config.releaseNotes ?? false),
         baseUrl: options.baseUrl || config.baseUrl,
         last: options.last,
         sections: config.sections,
