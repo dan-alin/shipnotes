@@ -4,7 +4,8 @@ import { Command } from 'commander';
 import { generateReleaseNotes } from './index.js';
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 interface SectionMapping {
   section: string;
@@ -20,6 +21,12 @@ interface Config {
 }
 
 const CONFIG_FILE = 'shipnotes.json';
+
+// Get package.json path relative to this file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJsonPath = join(__dirname, '../package.json');
+const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8'));
 
 async function loadConfig(): Promise<Config> {
   const configPath = join(process.cwd(), CONFIG_FILE);
@@ -44,7 +51,7 @@ const program = new Command();
 program
   .name('shipnotes')
   .description('Generate release notes from git history')
-  .version('0.0.1');
+  .version(packageJson.version);
 
 program
   .command('generate')
