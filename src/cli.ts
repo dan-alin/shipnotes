@@ -20,7 +20,7 @@ interface Config {
   sections?: SectionMapping[];
 }
 
-const CONFIG_FILE = 'shipnotes.json';
+const CONFIG_FILE = 'notegen.json';
 
 // Get package.json path relative to this file
 const __filename = fileURLToPath(import.meta.url);
@@ -49,7 +49,7 @@ async function loadConfig(): Promise<Config> {
 const program = new Command();
 
 program
-  .name('shipnotes')
+  .name('notegen')
   .description('Generate release notes from git history')
   .version(packageJson.version);
 

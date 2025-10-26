@@ -107,6 +107,7 @@ npx notegen generate --release-notes --base-url https://jira.company.com/browse
 - `-t, --to <commit>` - End at commit/tag (inclusive, default: `HEAD`)
 - `-l, --limit <number>` - Limit number of commits
 - `-r, --release-notes` - Generate release notes format with grouped tickets (feat/fix)
+- `--no-release-notes` - Generate standard changelog format (overrides config)
 - `-b, --base-url <url>` - Base URL for linking tickets
 - `--last` - Generate release notes for the last tag (auto-detects previous tag)
 
@@ -114,7 +115,7 @@ CLI options override configuration file settings.
 
 ## Modes
 
-### Basic Mode (default)
+### Basic Mode (default, or with `--no-release-notes`)
 
 Groups commits by conventional commit prefixes in the message:
 
@@ -131,6 +132,8 @@ Generates a simple changelog grouped by:
 - **Other Changes** (everything else)
 
 Custom sections from config are **not used** in basic mode.
+
+If your config has `"releaseNotes": true` by default, you can override it with `--no-release-notes` to use basic mode.
 
 ### Release Notes Mode (`--release-notes`)
 

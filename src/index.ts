@@ -120,9 +120,10 @@ export async function generateReleaseNotes(
         fromCommit,
         to,
         baseUrl,
-        options.sections
+        options.sections,
+        last
       )
-    : generateMarkdown(commits, fromCommit, to);
+    : generateMarkdown(commits, fromCommit, to, last);
 
   // Write to file
   const outputPath = join(process.cwd(), output);
@@ -162,15 +163,16 @@ function parseGitLog(output: string): Commit[] {
 function generateMarkdown(
   commits: Commit[],
   from?: string,
-  to?: string
+  to?: string,
+  isLastTag = false
 ): string {
   const date = new Date().toISOString().split('T')[0];
 
   // Generate title based on version tags
   let title = 'RELEASE NOTES';
   if (to && to !== 'HEAD') {
-    if (from) {
-      title = `RELEASE NOTES ${to} - ${from}`;
+    if (from && !isLastTag) {
+      title = `RELEASE NOTES ${from} → ${to}`;
     } else {
       title = `RELEASE NOTES ${to}`;
     }
@@ -178,12 +180,6 @@ function generateMarkdown(
 
   let markdown = `# ${title}\n\n`;
   markdown += `Generated: ${date}\n\n`;
-
-  if (from) {
-    markdown += `Range: ${from}..${to}\n\n`;
-  } else {
-    markdown += `Up to: ${to}\n\n`;
-  }
 
   // Basic mode always uses conventional commit patterns (ignores custom sections)
   const conventionalSections: SectionMapping[] = [
@@ -253,7 +249,7 @@ function generateMarkdown(
 
   // Summary
   markdown += `---\n\n`;
-  markdown += `**Total:** ${totalCount} commit(s)\n`;
+  markdown += `**Total:** ${totalCount} item(s)\n`;
 
   return markdown;
 }
@@ -263,15 +259,16 @@ function generateReleaseNotesMarkdown(
   from?: string,
   to?: string,
   baseUrl?: string,
-  sections?: SectionMapping[]
+  sections?: SectionMapping[],
+  isLastTag = false
 ): string {
   const date = new Date().toISOString().split('T')[0];
 
   // Generate title based on version tags
   let title = 'RELEASE NOTES';
   if (to && to !== 'HEAD') {
-    if (from) {
-      title = `RELEASE NOTES ${to} - ${from}`;
+    if (from && !isLastTag) {
+      title = `RELEASE NOTES ${from} → ${to}`;
     } else {
       title = `RELEASE NOTES ${to}`;
     }
@@ -279,12 +276,6 @@ function generateReleaseNotesMarkdown(
 
   let markdown = `# ${title}\n\n`;
   markdown += `Generated: ${date}\n\n`;
-
-  if (from) {
-    markdown += `Range: ${from}..${to}\n\n`;
-  } else {
-    markdown += `Up to: ${to}\n\n`;
-  }
 
   // Default sections if not provided
   const defaultSections: SectionMapping[] = [
@@ -335,7 +326,7 @@ function generateReleaseNotesMarkdown(
 
   // Summary
   markdown += `---\n\n`;
-  markdown += `**Total:** ${totalCount} commit(s)\n`;
+  markdown += `**Total:** ${totalCount} item(s)\n`;
 
   return markdown;
 }

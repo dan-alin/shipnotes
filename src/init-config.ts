@@ -18,7 +18,7 @@ interface Config {
   sections?: SectionMapping[];
 }
 
-const CONFIG_FILE = 'shipnotes.json';
+const CONFIG_FILE = 'notegen.json';
 
 function question(prompt: string): Promise<string> {
   const rl = readline.createInterface({
@@ -37,7 +37,7 @@ function question(prompt: string): Promise<string> {
 export async function initConfig() {
   const configPath = join(process.cwd(), CONFIG_FILE);
 
-  console.log('🔧 Initialize shipnotes configuration\n');
+  console.log('🔧 Initialize notegen configuration\n');
 
   // Check if config already exists
   if (existsSync(configPath)) {
@@ -88,14 +88,14 @@ export async function initConfig() {
     console.log(
       '\n📝 Default sections configured. Patterns match footer references (e.g., US: 123, BUG-456).'
     );
-    console.log('Edit shipnotes.json to customize sections.');
+    console.log('Edit notegen.json to customize sections.');
   }
 
   // Write config file
   await writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
 
   console.log(`\n✅ Configuration saved to ${configPath}`);
-  console.log('\nYou can now run: shipnotes generate');
+  console.log('\nYou can now run: notegen generate');
   console.log('\nNote: CLI options will override configuration file settings.');
 }
 
