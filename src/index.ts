@@ -257,10 +257,9 @@ function generateMarkdown(
         const scopeCommits = byScope.get(scope) || [];
         markdown += `### ${scope}\n\n`;
         for (const commit of scopeCommits) {
-          const conventionalMatch = commit.message.match(
-            /^(\w+)(?:\([^)]+\))?:\s*(.*)$/
-          );
-          const cleanMessage = conventionalMatch?.[3] || commit.message;
+          // Extract clean message by removing type and scope prefix
+          const match = commit.message.match(/^\w+(?:\([^)]+\))?:\s*(.*)$/);
+          const cleanMessage = match?.[1] || commit.message;
           markdown += `- ${cleanMessage}\n`;
         }
         markdown += `\n`;
