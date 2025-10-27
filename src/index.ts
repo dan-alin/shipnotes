@@ -231,18 +231,41 @@ function generateMarkdown(
     const sectionCommits = groupedCommits.get(mapping.section) || [];
     if (sectionCommits.length > 0) {
       markdown += `## ${mapping.section}\n\n`;
+
+      // Group by scope within each section
+      const byScope: Map<string, Commit[]> = new Map();
       for (const commit of sectionCommits) {
-        // Extract clean message (remove conventional commit prefix if present)
-        let cleanMessage = commit.message;
         const conventionalMatch = commit.message.match(
-          /^(\w+)(\([^)]+\))?:\s*(.*)$/
+          /^(\w+)(?:\(([^)]+)\))?:\s*(.*)$/
         );
-        if (conventionalMatch) {
-          cleanMessage = conventionalMatch[3];
+        const scope = conventionalMatch?.[2] || 'Other';
+        if (!byScope.has(scope)) {
+          byScope.set(scope, []);
         }
-        markdown += `- ${cleanMessage}\n`;
+        byScope.get(scope)?.push(commit);
       }
-      markdown += `\n`;
+
+      // Sort scopes: specific scopes alphabetically, 'Other' last
+      const sortedScopes = Array.from(byScope.keys()).sort((a, b) => {
+        if (a === 'Other') return 1;
+        if (b === 'Other') return -1;
+        return a.localeCompare(b);
+      });
+
+      // Render by scope
+      for (const scope of sortedScopes) {
+        const scopeCommits = byScope.get(scope) || [];
+        markdown += `### ${scope}\n\n`;
+        for (const commit of scopeCommits) {
+          const conventionalMatch = commit.message.match(
+            /^(\w+)(?:\([^)]+\))?:\s*(.*)$/
+          );
+          const cleanMessage = conventionalMatch?.[3] || commit.message;
+          markdown += `- ${cleanMessage}\n`;
+        }
+        markdown += `\n`;
+      }
+
       totalCount += sectionCommits.length;
     }
   }
