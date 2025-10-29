@@ -319,8 +319,10 @@ function generateReleaseNotesMarkdown(
     const searchText = `${commit.message}\n${commit.body}`;
 
     for (const mapping of activeSections) {
+      // Match patterns like: US_24, US-24, US:24, US 24, BUG#999
+      // Requires at least one separator to avoid false matches
       const regex = new RegExp(
-        `\\b${mapping.pattern}[-:\\s]*#?([\\w-]*\\d[\\w-]*)`,
+        `${mapping.pattern}[_-:\\s#]+([\\w-]*\\d[\\w-]*)`,
         'i'
       );
       if (regex.test(searchText)) {
@@ -356,6 +358,11 @@ function generateReleaseNotesMarkdown(
   return markdown;
 }
 
+function escapeMarkdown(text: string): string {
+  // Escape Markdown special characters: \ ` * _ { } [ ] ( ) # + - . ! |
+  return text.replace(/([\\`*_{}[\]()#+\-.!|])/g, '\\$1');
+}
+
 function formatCommitWithLink(
   commit: Commit,
   refType: string,
@@ -364,7 +371,9 @@ function formatCommitWithLink(
 ): string {
   // Extract all ticket numbers from commit message or body matching the reference type
   const searchText = `${commit.message}\n${commit.body}`;
-  const regex = new RegExp(`\\b${refType}[-:\\s]*#?([\\w-]*\\d[\\w-]*)`, 'gi');
+  // Match patterns like: US_24, US-24, US:24, US 24, BUG#999
+  // Requires at least one separator to avoid false matches
+  const regex = new RegExp(`${refType}[_-:\\s#]+([\\w-]*\\d[\\w-]*)`, 'gi');
   const matches = Array.from(searchText.matchAll(regex));
 
   if (matches.length === 0) {
@@ -378,7 +387,10 @@ function formatCommitWithLink(
     const ticketNumber = match[1];
     if (baseUrl) {
       const link = `${baseUrl}/${ticketNumber}`;
-      result += `- [${label} ${ticketNumber}](${link})\n`;
+      // Escape Markdown special characters in label and ticket number
+      const escapedLabel = escapeMarkdown(label);
+      const escapedTicketNumber = escapeMarkdown(ticketNumber);
+      result += `- [${escapedLabel} ${escapedTicketNumber}](${link})\n`;
     } else {
       result += `- ${label} ${ticketNumber}\n`;
     }
