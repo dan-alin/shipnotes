@@ -322,7 +322,7 @@ function generateReleaseNotesMarkdown(
       const regex = new RegExp(`${mapping.pattern}[-:]?\\s*#?(\\d+)`, 'i');
       if (regex.test(searchText)) {
         groupedCommits.get(mapping.section)?.push(commit);
-        break; // Only add to first matching section
+        // Don't break - allow commit to appear in multiple sections if it has multiple ticket types
       }
     }
   }
@@ -359,27 +359,27 @@ function formatCommitWithLink(
   label: string,
   baseUrl?: string
 ): string {
-  // Extract ticket number from commit message or body matching the reference type
-  let ticketNumber: string | null = null;
-
-  // Check message first, then body
+  // Extract all ticket numbers from commit message or body matching the reference type
   const searchText = `${commit.message}\n${commit.body}`;
-  const match = searchText.match(
-    new RegExp(`${refType}[-:]?\\s*#?(\\d+)`, 'i')
-  );
-  if (match) {
-    ticketNumber = match[1];
+  const regex = new RegExp(`${refType}[-:]?\\s*#?(\\d+)`, 'gi');
+  const matches = Array.from(searchText.matchAll(regex));
+
+  if (matches.length === 0) {
+    // Fallback for commits without ticket numbers (skip them in release notes mode)
+    return '';
   }
 
-  if (ticketNumber) {
+  // Generate a line for each ticket
+  let result = '';
+  for (const match of matches) {
+    const ticketNumber = match[1];
     if (baseUrl) {
       const link = `${baseUrl}/${ticketNumber}`;
-      return `- [${label} ${ticketNumber}](${link})\n`;
+      result += `- [${label} ${ticketNumber}](${link})\n`;
     } else {
-      return `- ${label} ${ticketNumber}\n`;
+      result += `- ${label} ${ticketNumber}\n`;
     }
   }
 
-  // Fallback for commits without ticket numbers (skip them in release notes mode)
-  return '';
+  return result;
 }
