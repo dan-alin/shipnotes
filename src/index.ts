@@ -328,7 +328,7 @@ function generateReleaseNotesMarkdown(
       // Match patterns like: US_24, US-24, US:24, US 24, BUG#999
       // Requires at least one separator to avoid false matches
       const regex = new RegExp(
-        `${mapping.pattern}[_-:\\s#]+([\\w-]*\\d[\\w-]*)`,
+        `${mapping.pattern}[_\\-:\\s#]+([\\w\\-]*\\d[\\w\\-]*)`,
         'i'
       );
       if (regex.test(searchText)) {
@@ -379,7 +379,10 @@ function formatCommitWithLink(
   const searchText = `${commit.message}\n${commit.body}`;
   // Match patterns like: US_24, US-24, US:24, US 24, BUG#999
   // Requires at least one separator to avoid false matches
-  const regex = new RegExp(`${refType}[_-:\\s#]+([\\w-]*\\d[\\w-]*)`, 'gi');
+  const regex = new RegExp(
+    `${refType}[_\\-:\\s#]+([\\w\\-]*\\d[\\w\\-]*)`,
+    'gi'
+  );
   const matches = Array.from(searchText.matchAll(regex));
 
   if (matches.length === 0) {
