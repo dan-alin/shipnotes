@@ -319,7 +319,10 @@ function generateReleaseNotesMarkdown(
     const searchText = `${commit.message}\n${commit.body}`;
 
     for (const mapping of activeSections) {
-      const regex = new RegExp(`${mapping.pattern}[-:]?\\s*#?(\\d+)`, 'i');
+      const regex = new RegExp(
+        `\\b${mapping.pattern}[-:\\s]*#?([\\w-]*\\d[\\w-]*)`,
+        'i'
+      );
       if (regex.test(searchText)) {
         groupedCommits.get(mapping.section)?.push(commit);
         // Don't break - allow commit to appear in multiple sections if it has multiple ticket types
@@ -361,7 +364,7 @@ function formatCommitWithLink(
 ): string {
   // Extract all ticket numbers from commit message or body matching the reference type
   const searchText = `${commit.message}\n${commit.body}`;
-  const regex = new RegExp(`${refType}[-:]?\\s*#?(\\d+)`, 'gi');
+  const regex = new RegExp(`\\b${refType}[-:\\s]*#?([\\w-]*\\d[\\w-]*)`, 'gi');
   const matches = Array.from(searchText.matchAll(regex));
 
   if (matches.length === 0) {

@@ -117,19 +117,35 @@ CLI options override configuration file settings.
 
 ### Basic Mode (default, or with `--no-release-notes`)
 
-Groups commits by conventional commit prefixes in the message:
+Groups commits by conventional commit prefixes and scopes:
 
 ```bash
-feat: add user authentication
-fix: resolve login bug
+feat(api): add user authentication
+fix(ui): resolve login bug
 chore: update dependencies
 ```
 
-Generates a simple changelog grouped by:
+Generates a hierarchical changelog:
 
-- **Features** (`feat:` commits)
-- **Bug Fixes** (`fix:` commits)
-- **Other Changes** (everything else)
+```markdown
+## Features
+
+### api
+
+- add user authentication
+
+### ui
+
+- update dashboard
+
+## Bug Fixes
+
+### api
+
+- resolve login bug
+```
+
+Commits are grouped by type (feat/fix/other), then by scope. Commits without a scope appear under "Other".
 
 Custom sections from config are **not used** in basic mode.
 
@@ -157,11 +173,20 @@ fix: resolve login bug
 BUG: 456
 ```
 
-In release notes mode, commits are grouped by ticket reference type (`US`, `BUG`, etc.) instead of the commit message prefix. Supported formats:
+In release notes mode, commits are grouped by ticket reference type (`US`, `BUG`, etc.) instead of the commit message prefix.
 
-- `US: 123` or `US-123` or `US 123` or `US#123` → User Stories section
-- `BUG: 456` or `BUG-456` or `BUG 456` or `BUG#456` → Bugs section
-- Any custom pattern defined in your config
+**Supported ticket formats:**
+
+- Numeric: `US123`, `US 123`, `US-123`, `US:123`, `US#123`
+- Alphanumeric: `JIRA-ABC-123`, `BUG_456`, `US-2024-789`
+- Multiple tickets per commit: `US 234 & BUG 456` (each ticket gets its own line)
+- Mixed types: `US 234, BUG 456` (appears in both User Stories and Bugs sections)
+
+**Requirements:**
+
+- Pattern must be a complete word (e.g., `US` won't match in `FOCUS`)
+- Ticket ID must contain at least one digit
+- Supports custom patterns defined in your config
 
 Commits without matching ticket references are excluded from release notes mode.
 
@@ -191,4 +216,18 @@ You can configure custom sections in `notegen.json`:
 }
 ```
 
-Each section matches commits based on ticket references in either the commit message or body. The `pattern` field looks for `<pattern>: <number>`, `<pattern>-<number>`, `<pattern> <number>`, or `<pattern>#<number>` anywhere in the commit.
+Each section matches commits based on ticket references in either the commit message or body.
+
+**Pattern matching rules:**
+
+- The `pattern` must match as a complete word (word boundaries enforced)
+- Ticket IDs must contain at least one digit
+- Flexible separators: space, dash, colon, or no separator
+- Supports alphanumeric ticket IDs (e.g., `JIRA-ABC-123`)
+- Multiple tickets in one commit will create separate entries
+
+**Example patterns:**
+
+- `US` matches: `US123`, `US-123`, `US 123`, `US:123`, `US#123`, `US-ABC-123`
+- `BUG` matches: `BUG456`, `BUG-456`, `BUG_789`
+- Won't match: `FOCUS 123` (US is not a complete word), `US for` (no digit)
