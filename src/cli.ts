@@ -74,6 +74,7 @@ program
     'Base URL for linking tickets (e.g., https://jira.company.com/browse)'
   )
   .option('--last', 'Generate release notes for the last tag')
+  .option('-p, --print', 'Print output to console instead of writing to file')
   .action(async (options) => {
     try {
       // Load config file
@@ -92,10 +93,13 @@ program
         baseUrl: options.baseUrl || config.baseUrl,
         last: options.last,
         sections: config.sections,
+        print: options.print,
       };
 
       await generateReleaseNotes(mergedOptions);
-      console.log(`✅ Release notes generated: ${mergedOptions.output}`);
+      if (!options.print) {
+        console.log(`✅ Release notes generated: ${mergedOptions.output}`);
+      }
     } catch (error) {
       console.error(
         '❌ Error:',

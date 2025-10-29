@@ -20,6 +20,7 @@ export interface ReleaseNotesOptions {
   baseUrl?: string;
   last?: boolean;
   sections?: SectionMapping[];
+  print?: boolean;
 }
 
 interface Commit {
@@ -41,6 +42,7 @@ export async function generateReleaseNotes(
     releaseNotes = false,
     baseUrl,
     last = false,
+    print = false,
   } = options;
 
   let to = options.to || 'HEAD';
@@ -125,9 +127,13 @@ export async function generateReleaseNotes(
       )
     : generateMarkdown(commits, fromCommit, to, last);
 
-  // Write to file
-  const outputPath = join(process.cwd(), output);
-  await writeFile(outputPath, markdown, 'utf-8');
+  // Output to console or write to file
+  if (print) {
+    console.log(markdown);
+  } else {
+    const outputPath = join(process.cwd(), output);
+    await writeFile(outputPath, markdown, 'utf-8');
+  }
 }
 
 function parseGitLog(output: string): Commit[] {
