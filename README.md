@@ -113,6 +113,51 @@ npx notegen generate --release-notes --base-url https://jira.company.com/browse
 
 CLI options override configuration file settings.
 
+## Commit Processing
+
+### Chronological Order
+
+Commits are processed in **reverse chronological order** (newest to oldest). This ensures the most recent changes appear first in your release notes.
+
+### Revert Commit Handling
+
+The tool automatically handles revert commits to keep your release notes accurate:
+
+**How it works:**
+
+1. **Detects revert commits** - Identifies commits starting with "Revert" or "revert"
+2. **Extracts reverted tickets** - Finds ticket references (US-123, BUG-456, etc.) in the revert commit
+3. **Removes earlier commits** - Filters out commits with those ticket IDs that came _before_ the revert
+4. **Preserves newer commits** - Keeps commits with the same ticket ID if they came _after_ the revert
+
+**Example timeline:**
+
+```bash
+# Commit history (oldest to newest)
+git commit -m "feat: add feature US-123"        # ✗ Will be removed
+git commit -m "Revert: feat US-123"             # ✗ Revert itself removed
+git commit -m "feat: re-add feature US-123"     # ✓ Kept (after revert)
+```
+
+**Result:** Only the final implementation of US-123 appears in release notes.
+
+**Supported revert formats:**
+
+```bash
+# Standard git revert
+Revert "feat: add feature US-123"
+
+# Manual revert with ticket in message
+revert: remove feature US-123
+
+# Revert with ticket in body
+Revert "feat: add feature"
+
+US: 123
+```
+
+This prevents duplicate or incorrect entries when features are reverted and re-implemented.
+
 ## Modes
 
 ### Basic Mode (default, or with `--no-release-notes`)
@@ -231,3 +276,140 @@ Each section matches commits based on ticket references in either the commit mes
 - `US` matches: `US123`, `US-123`, `US 123`, `US:123`, `US#123`, `US-ABC-123`
 - `BUG` matches: `BUG456`, `BUG-456`, `BUG_789`
 - Won't match: `FOCUS 123` (US is not a complete word), `US for` (no digit)
+
+## Practical Examples
+
+### Example 1: Simple Release with Reverts
+
+**Git History:**
+
+```bash
+git commit -m "feat: add login feature" -m "US: 100"
+git commit -m "fix: resolve auth bug" -m "BUG: 200"
+git commit -m "feat: add dashboard" -m "US: 101"
+git commit -m "Revert: fix auth" -m "BUG: 200"  # Reverting BUG-200
+git commit -m "fix: proper auth fix" -m "BUG: 200"  # Re-implementing BUG-200
+```
+
+**Command:**
+
+```bash
+npx notegen generate --release-notes
+```
+
+**Output (RELEASE_NOTES.md):**
+
+```markdown
+# RELEASE NOTES
+
+Generated: 2024-01-15
+
+## User Stories
+
+- US 100
+- US 101
+
+## Bugs
+
+- BUG 200
+
+---
+
+**Total:** 3 item(s)
+```
+
+**What happened:**
+
+- Original BUG-200 fix was removed (reverted)
+- Revert commit itself was removed
+- New BUG-200 fix is kept (after revert)
+- All US items kept (not reverted)
+
+### Example 2: Feature Development Cycle
+
+**Git History:**
+
+```bash
+git commit -m "feat(auth): implement OAuth US-500"
+git commit -m "feat(auth): add token refresh US-500"
+git commit -m "fix(auth): handle edge case US-500"
+git commit -m "Revert feat: OAuth not ready" -m "US: 500"
+git commit -m "feat(api): add REST endpoints US-501"
+git commit -m "feat(auth): implement SAML US-500"  # New approach
+```
+
+**Command:**
+
+```bash
+npx notegen generate --release-notes --base-url https://jira.company.com/browse
+```
+
+**Output:**
+
+```markdown
+# RELEASE NOTES
+
+Generated: 2024-01-15
+
+## User Stories
+
+- [US 500](https://jira.company.com/browse/500)
+- [US 501](https://jira.company.com/browse/501)
+
+---
+
+**Total:** 2 item(s)
+```
+
+**What happened:**
+
+- First 3 commits with US-500 removed (OAuth implementation reverted)
+- US-501 kept (different ticket)
+- Final US-500 commit kept (SAML implementation after revert)
+
+### Example 3: Multiple Tickets per Commit
+
+**Git History:**
+
+```bash
+git commit -m "feat: combined feature" -m "US: 600\nUS: 601"
+git commit -m "fix: combined fixes" -m "BUG: 700\nBUG: 701"
+git commit -m "Revert: feature not ready" -m "US: 600"  # Only revert US-600
+```
+
+**Output:**
+
+```markdown
+# RELEASE NOTES
+
+Generated: 2024-01-15
+
+## User Stories
+
+- US 601
+
+## Bugs
+
+- BUG 700
+- BUG 701
+
+---
+
+**Total:** 3 item(s)
+```
+
+**What happened:**
+
+- US-600 removed (reverted)
+- US-601 kept (same commit, but different ticket - not reverted)
+- All bug fixes kept (not reverted)
+
+### Example 4: Version Range with Reverts
+
+**Command:**
+
+```bash
+npx notegen generate --from v1.0.0 --to v2.0.0 --release-notes
+```
+
+Only processes commits between v1.0.0 and v2.0.0, applying revert logic within that range. Reverts outside the range don't affect commits inside the range.
