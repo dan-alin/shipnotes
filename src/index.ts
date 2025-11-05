@@ -87,8 +87,12 @@ export async function generateReleaseNotes(
     }
   }
 
-  // Build git log command arguments
-  const args = ['log', '--format=%H%n%s%n%an%n%ae%n%aI%n%b%n---END---'];
+  // Build git log command arguments (reverse order: newest first)
+  const args = [
+    'log',
+    '--reverse',
+    '--format=%H%n%s%n%an%n%ae%n%aI%n%b%n---END---',
+  ];
 
   if (limit) {
     args.push(`-${limit}`);
@@ -109,11 +113,14 @@ export async function generateReleaseNotes(
   }
 
   // Parse commits
-  const commits = parseGitLog(stdout);
+  let commits = parseGitLog(stdout);
 
   if (commits.length === 0) {
     throw new Error('No commits found');
   }
+
+  // Filter out reverted commits
+  commits = filterRevertedCommits(commits);
 
   // Generate markdown content
   const markdown = releaseNotes
@@ -164,6 +171,63 @@ function parseGitLog(output: string): Commit[] {
   }
 
   return commits;
+}
+
+function filterRevertedCommits(commits: Commit[]): Commit[] {
+  // Track which commits should be removed
+  const commitsToRemove = new Set<string>();
+  const revertCommitHashes = new Set<string>();
+
+  // Map ticket numbers to commit indices for chronological tracking
+  const ticketCommits = new Map<string, number[]>();
+
+  // Build index of ticket numbers to commit positions
+  commits.forEach((commit, index) => {
+    const searchText = `${commit.message}\n${commit.body}`;
+    const ticketRegex = /(?:US|BUG)[_:\s#-]+([\w-]*\d[\w-]*)/gi;
+    const matches = Array.from(searchText.matchAll(ticketRegex));
+
+    for (const match of matches) {
+      const ticketNumber = match[1];
+      if (!ticketCommits.has(ticketNumber)) {
+        ticketCommits.set(ticketNumber, []);
+      }
+      ticketCommits.get(ticketNumber)!.push(index);
+    }
+  });
+
+  // Process commits to identify reverts and what they revert
+  commits.forEach((commit, index) => {
+    const isRevert = /^revert/i.test(commit.message);
+
+    if (isRevert) {
+      revertCommitHashes.add(commit.hash);
+
+      // Extract ticket numbers from the revert commit
+      const searchText = `${commit.message}\n${commit.body}`;
+      const ticketRegex = /(?:US|BUG)[_:\s#-]+([\w-]*\d[\w-]*)/gi;
+      const matches = Array.from(searchText.matchAll(ticketRegex));
+
+      for (const match of matches) {
+        const ticketNumber = match[1];
+        const commitIndices = ticketCommits.get(ticketNumber) || [];
+
+        // Remove all commits with this ticket that came BEFORE this revert
+        for (const commitIndex of commitIndices) {
+          if (commitIndex < index) {
+            commitsToRemove.add(commits[commitIndex].hash);
+          }
+        }
+      }
+    }
+  });
+
+  // Filter out revert commits and reverted commits
+  return commits.filter((commit) => {
+    return (
+      !revertCommitHashes.has(commit.hash) && !commitsToRemove.has(commit.hash)
+    );
+  });
 }
 
 function generateMarkdown(
