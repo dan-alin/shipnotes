@@ -158,11 +158,52 @@ US: 123
 
 This prevents duplicate or incorrect entries when features are reverted and re-implemented.
 
+### Version Grouping
+
+All release notes are automatically grouped by version tags. The tool uses `git describe` to associate each commit with its nearest reachable tag.
+
+**How it works:**
+
+1. For each commit, the tool finds the most recent tag that contains it
+2. Commits are grouped by version first, then by section type
+3. Versions are sorted from newest to oldest
+4. Commits without tags appear under "Untagged"
+
+**Example structure:**
+
+```markdown
+## 2.0.0
+
+### User Stories
+
+- US 1
+- US 2
+
+### Bugs
+
+- BUG 1
+- BUG 2
+
+## 1.9.0
+
+### User Stories
+
+- US 3
+- US 4
+
+### Bugs
+
+- BUG 3
+- BUG 4
+```
+
+This structure makes it easy to see what changed in each version and generate release notes for specific releases.
+
 ## Modes
 
 ### Basic Mode (default, or with `--no-release-notes`)
 
-Groups commits by conventional commit prefixes and scopes:
+Groups commits by conventional commit prefixes and scopes, organized by version:
 
 ```bash
 feat(api): add user authentication
@@ -170,27 +211,37 @@ fix(ui): resolve login bug
 chore: update dependencies
 ```
 
-Generates a hierarchical changelog:
+Generates a hierarchical changelog grouped by version:
 
 ```markdown
-## Features
+## 2.0.0
 
-### api
+### Features
+
+#### api
 
 - add user authentication
 
-### ui
+#### ui
 
 - update dashboard
 
-## Bug Fixes
+### Bug Fixes
 
-### api
+#### api
 
 - resolve login bug
+
+## 1.0.0
+
+### Features
+
+#### core
+
+- initial release
 ```
 
-Commits are grouped by type (feat/fix/other), then by scope. Commits without a scope appear under "Other".
+Commits are grouped by **version first** (detected from git tags), then by type (feat/fix/other), then by scope. Commits without a scope appear under "Other". Commits without a version tag appear under "Untagged".
 
 Custom sections from config are **not used** in basic mode.
 
@@ -198,7 +249,7 @@ If your config has `"releaseNotes": true` by default, you can override it with `
 
 ### Release Notes Mode (`--release-notes`)
 
-Groups commits by ticket references for tracking. The ticket reference can be in either the commit message or body:
+Groups commits by ticket references for tracking, organized by version. The ticket reference can be in either the commit message or body:
 
 ```bash
 # In commit message (single -m)
@@ -218,7 +269,7 @@ fix: resolve login bug
 BUG: 456
 ```
 
-In release notes mode, commits are grouped by ticket reference type (`US`, `BUG`, etc.) instead of the commit message prefix.
+In release notes mode, commits are grouped by **version first** (detected from git tags), then by ticket reference type (`US`, `BUG`, etc.).
 
 **Supported ticket formats:**
 
@@ -304,12 +355,14 @@ npx notegen generate --release-notes
 
 Generated: 2024-01-15
 
-## User Stories
+## 2.0.0
+
+### User Stories
 
 - US 100
 - US 101
 
-## Bugs
+### Bugs
 
 - BUG 200
 
@@ -351,9 +404,16 @@ npx notegen generate --release-notes --base-url https://jira.company.com/browse
 
 Generated: 2024-01-15
 
-## User Stories
+## 3.0.0
+
+### User Stories
 
 - [US 500](https://jira.company.com/browse/500)
+
+## 2.5.0
+
+### User Stories
+
 - [US 501](https://jira.company.com/browse/501)
 
 ---
@@ -384,11 +444,13 @@ git commit -m "Revert: feature not ready" -m "US: 600"  # Only revert US-600
 
 Generated: 2024-01-15
 
-## User Stories
+## 1.5.0
+
+### User Stories
 
 - US 601
 
-## Bugs
+### Bugs
 
 - BUG 700
 - BUG 701

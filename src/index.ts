@@ -30,6 +30,7 @@ interface Commit {
   author_email: string;
   date: string;
   body: string;
+  version?: string;
 }
 
 export async function generateReleaseNotes(
@@ -119,6 +120,9 @@ export async function generateReleaseNotes(
     throw new Error('No commits found');
   }
 
+  // Associate commits with versions
+  commits = await associateCommitsWithVersions(commits);
+
   // Filter out reverted commits
   commits = filterRevertedCommits(commits);
 
@@ -171,6 +175,37 @@ function parseGitLog(output: string): Commit[] {
   }
 
   return commits;
+}
+
+async function associateCommitsWithVersions(
+  commits: Commit[]
+): Promise<Commit[]> {
+  // For each commit, use git describe to find the nearest tag
+  try {
+    for (const commit of commits) {
+      try {
+        // Use git describe to find the most recent tag reachable from this commit
+        const { stdout } = await execFileAsync('git', [
+          'describe',
+          '--tags',
+          '--abbrev=0',
+          commit.hash,
+        ]);
+        const tag = stdout.trim();
+        if (tag) {
+          commit.version = tag;
+        }
+      } catch {
+        // No tag found for this commit, leave version undefined
+      }
+    }
+
+    return commits;
+  } catch (error) {
+    // If any error occurs, just return commits without version info
+    console.warn('⚠️  Could not associate commits with versions:', error);
+    return commits;
+  }
 }
 
 function filterRevertedCommits(commits: Commit[]): Commit[] {
@@ -260,82 +295,114 @@ function generateMarkdown(
 
   const activeSections = conventionalSections;
 
-  // Group commits by section
-  const groupedCommits: Map<string, Commit[]> = new Map();
-  const matchedCommits = new Set<string>();
+  // Group commits by version first
+  const commitsByVersion: Map<string, Commit[]> = new Map();
 
-  for (const mapping of activeSections) {
-    groupedCommits.set(mapping.section, []);
+  for (const commit of commits) {
+    const version = commit.version || 'Untagged';
+    if (!commitsByVersion.has(version)) {
+      commitsByVersion.set(version, []);
+    }
+    commitsByVersion.get(version)?.push(commit);
   }
 
-  // Match commits to sections
-  for (const commit of commits) {
-    const message = commit.message;
+  // Sort versions (most recent first)
+  const sortedVersions = Array.from(commitsByVersion.keys()).sort((a, b) => {
+    if (a === 'Untagged') return 1;
+    if (b === 'Untagged') return -1;
+    // Simple version comparison (works for semver-like versions)
+    return b.localeCompare(a, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    });
+  });
+
+  let totalCount = 0;
+
+  // Render by version
+  for (const version of sortedVersions) {
+    const versionCommits = commitsByVersion.get(version) || [];
+    if (versionCommits.length === 0) continue;
+
+    // Version header
+    markdown += `## ${version}\n\n`;
+
+    // Group commits by section within this version
+    const groupedCommits: Map<string, Commit[]> = new Map();
+    const matchedCommits = new Set<string>();
 
     for (const mapping of activeSections) {
-      // Skip "catch-all" patterns for now
-      if (mapping.pattern === '.*') continue;
+      groupedCommits.set(mapping.section, []);
+    }
 
-      const regex = new RegExp(mapping.pattern, 'i');
-      if (regex.test(message)) {
-        groupedCommits.get(mapping.section)?.push(commit);
-        matchedCommits.add(commit.hash);
-        break; // Only add to first matching section
+    // Match commits to sections
+    for (const commit of versionCommits) {
+      const message = commit.message;
+
+      for (const mapping of activeSections) {
+        // Skip "catch-all" patterns for now
+        if (mapping.pattern === '.*') continue;
+
+        const regex = new RegExp(mapping.pattern, 'i');
+        if (regex.test(message)) {
+          groupedCommits.get(mapping.section)?.push(commit);
+          matchedCommits.add(commit.hash);
+          break; // Only add to first matching section
+        }
       }
     }
-  }
 
-  // Add unmatched commits to catch-all section (if exists)
-  const catchAllSection = activeSections.find((s) => s.pattern === '.*');
-  if (catchAllSection) {
-    for (const commit of commits) {
-      if (!matchedCommits.has(commit.hash)) {
-        groupedCommits.get(catchAllSection.section)?.push(commit);
+    // Add unmatched commits to catch-all section (if exists)
+    const catchAllSection = activeSections.find((s) => s.pattern === '.*');
+    if (catchAllSection) {
+      for (const commit of versionCommits) {
+        if (!matchedCommits.has(commit.hash)) {
+          groupedCommits.get(catchAllSection.section)?.push(commit);
+        }
       }
     }
-  }
 
-  // Render sections
-  let totalCount = 0;
-  for (const mapping of activeSections) {
-    const sectionCommits = groupedCommits.get(mapping.section) || [];
-    if (sectionCommits.length > 0) {
-      markdown += `## ${mapping.section}\n\n`;
+    // Render sections for this version
+    for (const mapping of activeSections) {
+      const sectionCommits = groupedCommits.get(mapping.section) || [];
+      if (sectionCommits.length > 0) {
+        markdown += `### ${mapping.section}\n\n`;
 
-      // Group by scope within each section
-      const byScope: Map<string, Commit[]> = new Map();
-      for (const commit of sectionCommits) {
-        const conventionalMatch = commit.message.match(
-          /^(\w+)(?:\(([^)]+)\))?:\s*(.*)$/
-        );
-        const scope = conventionalMatch?.[2] || 'Other';
-        if (!byScope.has(scope)) {
-          byScope.set(scope, []);
+        // Group by scope within each section
+        const byScope: Map<string, Commit[]> = new Map();
+        for (const commit of sectionCommits) {
+          const conventionalMatch = commit.message.match(
+            /^(\w+)(?:\(([^)]+)\))?:\s*(.*)$/
+          );
+          const scope = conventionalMatch?.[2] || 'Other';
+          if (!byScope.has(scope)) {
+            byScope.set(scope, []);
+          }
+          byScope.get(scope)?.push(commit);
         }
-        byScope.get(scope)?.push(commit);
-      }
 
-      // Sort scopes: specific scopes alphabetically, 'Other' last
-      const sortedScopes = Array.from(byScope.keys()).sort((a, b) => {
-        if (a === 'Other') return 1;
-        if (b === 'Other') return -1;
-        return a.localeCompare(b);
-      });
+        // Sort scopes: specific scopes alphabetically, 'Other' last
+        const sortedScopes = Array.from(byScope.keys()).sort((a, b) => {
+          if (a === 'Other') return 1;
+          if (b === 'Other') return -1;
+          return a.localeCompare(b);
+        });
 
-      // Render by scope
-      for (const scope of sortedScopes) {
-        const scopeCommits = byScope.get(scope) || [];
-        markdown += `### ${scope}\n\n`;
-        for (const commit of scopeCommits) {
-          // Extract clean message by removing type and scope prefix
-          const match = commit.message.match(/^\w+(?:\([^)]+\))?:\s*(.*)$/);
-          const cleanMessage = match?.[1] || commit.message;
-          markdown += `- ${cleanMessage}\n`;
+        // Render by scope
+        for (const scope of sortedScopes) {
+          const scopeCommits = byScope.get(scope) || [];
+          markdown += `#### ${scope}\n\n`;
+          for (const commit of scopeCommits) {
+            // Extract clean message by removing type and scope prefix
+            const match = commit.message.match(/^\w+(?:\([^)]+\))?:\s*(.*)$/);
+            const cleanMessage = match?.[1] || commit.message;
+            markdown += `- ${cleanMessage}\n`;
+          }
+          markdown += `\n`;
         }
-        markdown += `\n`;
-      }
 
-      totalCount += sectionCommits.length;
+        totalCount += sectionCommits.length;
+      }
     }
   }
 
@@ -377,47 +444,79 @@ function generateReleaseNotesMarkdown(
 
   const activeSections = sections || defaultSections;
 
-  // Group commits by section based on footer references
-  const groupedCommits: Map<string, Commit[]> = new Map();
-
-  for (const mapping of activeSections) {
-    groupedCommits.set(mapping.section, []);
-  }
+  // Group commits by version first
+  const commitsByVersion: Map<string, Commit[]> = new Map();
 
   for (const commit of commits) {
-    // Check both message and body for reference type (e.g., US: 234, BUG: 45, US-234, BUG-45)
-    const searchText = `${commit.message}\n${commit.body}`;
-
-    for (const mapping of activeSections) {
-      // Match patterns like: US_24, US-24, US:24, US 24, BUG#999
-      // Requires at least one separator to avoid false matches
-      const regex = new RegExp(
-        `${mapping.pattern}[_\\-:\\s#]+([\\w\\-]*\\d[\\w\\-]*)`,
-        'i'
-      );
-      if (regex.test(searchText)) {
-        groupedCommits.get(mapping.section)?.push(commit);
-        // Don't break - allow commit to appear in multiple sections if it has multiple ticket types
-      }
+    const version = commit.version || 'Untagged';
+    if (!commitsByVersion.has(version)) {
+      commitsByVersion.set(version, []);
     }
+    commitsByVersion.get(version)?.push(commit);
   }
 
-  // Render sections
+  // Sort versions (most recent first)
+  const sortedVersions = Array.from(commitsByVersion.keys()).sort((a, b) => {
+    if (a === 'Untagged') return 1;
+    if (b === 'Untagged') return -1;
+    // Simple version comparison (works for semver-like versions)
+    return b.localeCompare(a, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    });
+  });
+
   let totalCount = 0;
-  for (const mapping of activeSections) {
-    const sectionCommits = groupedCommits.get(mapping.section) || [];
-    if (sectionCommits.length > 0) {
-      markdown += `## ${mapping.section}\n\n`;
-      for (const commit of sectionCommits) {
-        markdown += formatCommitWithLink(
-          commit,
-          mapping.pattern,
-          mapping.label,
-          baseUrl
+
+  // Render by version
+  for (const version of sortedVersions) {
+    const versionCommits = commitsByVersion.get(version) || [];
+    if (versionCommits.length === 0) continue;
+
+    // Version header
+    markdown += `## ${version}\n\n`;
+
+    // Group commits by section within this version
+    const groupedCommits: Map<string, Commit[]> = new Map();
+
+    for (const mapping of activeSections) {
+      groupedCommits.set(mapping.section, []);
+    }
+
+    for (const commit of versionCommits) {
+      // Check both message and body for reference type (e.g., US: 234, BUG: 45, US-234, BUG-45)
+      const searchText = `${commit.message}\n${commit.body}`;
+
+      for (const mapping of activeSections) {
+        // Match patterns like: US_24, US-24, US:24, US 24, BUG#999
+        // Requires at least one separator to avoid false matches
+        const regex = new RegExp(
+          `${mapping.pattern}[_\\-:\\s#]+([\\w\\-]*\\d[\\w\\-]*)`,
+          'i'
         );
+        if (regex.test(searchText)) {
+          groupedCommits.get(mapping.section)?.push(commit);
+          // Don't break - allow commit to appear in multiple sections if it has multiple ticket types
+        }
       }
-      markdown += `\n`;
-      totalCount += sectionCommits.length;
+    }
+
+    // Render sections for this version
+    for (const mapping of activeSections) {
+      const sectionCommits = groupedCommits.get(mapping.section) || [];
+      if (sectionCommits.length > 0) {
+        markdown += `### ${mapping.section}\n\n`;
+        for (const commit of sectionCommits) {
+          markdown += formatCommitWithLink(
+            commit,
+            mapping.pattern,
+            mapping.label,
+            baseUrl
+          );
+        }
+        markdown += `\n`;
+        totalCount += sectionCommits.length;
+      }
     }
   }
 
