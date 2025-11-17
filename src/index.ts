@@ -324,9 +324,6 @@ function generateMarkdown(
     const versionCommits = commitsByVersion.get(version) || [];
     if (versionCommits.length === 0) continue;
 
-    // Version header
-    markdown += `## ${version}\n\n`;
-
     // Group commits by section within this version
     const groupedCommits: Map<string, Commit[]> = new Map();
     const matchedCommits = new Set<string>();
@@ -361,6 +358,17 @@ function generateMarkdown(
         }
       }
     }
+
+    // Check if this version has any items in any section
+    const hasItems = Array.from(groupedCommits.values()).some(
+      (commits) => commits.length > 0
+    );
+
+    // Skip version if no items found
+    if (!hasItems) continue;
+
+    // Version header (only if there are items)
+    markdown += `## ${version}\n\n`;
 
     // Render sections for this version
     for (const mapping of activeSections) {
@@ -473,9 +481,6 @@ function generateReleaseNotesMarkdown(
     const versionCommits = commitsByVersion.get(version) || [];
     if (versionCommits.length === 0) continue;
 
-    // Version header
-    markdown += `## ${version}\n\n`;
-
     // Group commits by section within this version
     const groupedCommits: Map<string, Commit[]> = new Map();
 
@@ -500,6 +505,17 @@ function generateReleaseNotesMarkdown(
         }
       }
     }
+
+    // Check if this version has any items in any section
+    const hasItems = Array.from(groupedCommits.values()).some(
+      (commits) => commits.length > 0
+    );
+
+    // Skip version if no items found
+    if (!hasItems) continue;
+
+    // Version header (only if there are items)
+    markdown += `## ${version}\n\n`;
 
     // Render sections for this version
     for (const mapping of activeSections) {

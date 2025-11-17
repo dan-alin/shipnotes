@@ -189,6 +189,7 @@ All release notes are automatically grouped by version tags. The tool uses `git 
 ### User Stories
 
 - US 3
+
 - US 4
 
 ### Bugs
