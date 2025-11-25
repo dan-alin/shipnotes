@@ -98,6 +98,12 @@ npx notegen generate --release-notes
 
 # With ticket links
 npx notegen generate --release-notes --base-url https://jira.company.com/browse
+
+# Group all versions under a single release tag
+npx notegen generate --release-notes --group v2.0.0
+
+# Useful for combining multiple tags into one production release
+npx notegen generate --from v1.0.0 --to HEAD --group PROD-v2.0.0 --release-notes
 ```
 
 ## Options
@@ -110,6 +116,8 @@ npx notegen generate --release-notes --base-url https://jira.company.com/browse
 - `--no-release-notes` - Generate standard changelog format (overrides config)
 - `-b, --base-url <url>` - Base URL for linking tickets
 - `--last` - Generate release notes for the last tag (auto-detects previous tag)
+- `-g, --group <tag>` - Group all sections under a specific tag/version (useful for combining multiple tags into one release)
+- `-p, --print` - Print output to console instead of writing to file
 
 CLI options override configuration file settings.
 
@@ -199,6 +207,37 @@ All release notes are automatically grouped by version tags. The tool uses `git 
 ```
 
 This structure makes it easy to see what changed in each version and generate release notes for specific releases.
+
+#### Grouping Multiple Tags
+
+When deploying to higher environments (e.g., production), you may have multiple tags but want to generate a single release note. Use the `--group` flag:
+
+```bash
+# Combine multiple dev/staging tags into one production release
+npx notegen generate --from v1.5.0 --to HEAD --group PROD-v2.0.0 --release-notes
+```
+
+**Example output:**
+
+```markdown
+## PROD-v2.0.0
+
+### User Stories
+
+- US 1
+- US 2
+- US 3
+- US 4
+
+### Bugs
+
+- BUG 1
+- BUG 2
+- BUG 3
+- BUG 4
+```
+
+Instead of separating by individual version tags (2.0.0, 1.9.0), all commits are grouped under the specified tag.
 
 ## Modes
 

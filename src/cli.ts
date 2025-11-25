@@ -18,6 +18,7 @@ interface Config {
   releaseNotes?: boolean;
   output?: string;
   sections?: SectionMapping[];
+  group?: string;
 }
 
 const CONFIG_FILE = 'notegen.json';
@@ -75,6 +76,10 @@ program
   )
   .option('--last', 'Generate release notes for the last tag')
   .option('-p, --print', 'Print output to console instead of writing to file')
+  .option(
+    '-g, --group <tag>',
+    'Group all sections under a specific tag/version (useful for combining multiple tags into one release)'
+  )
   .action(async (options) => {
     try {
       // Load config file
@@ -94,6 +99,7 @@ program
         last: options.last,
         sections: config.sections,
         print: options.print,
+        group: options.group || config.group,
       };
 
       await generateReleaseNotes(mergedOptions);
